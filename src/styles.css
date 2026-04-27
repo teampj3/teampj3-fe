@@ -251,7 +251,7 @@ h1 {
   font-size: 14px;
 }
 
-.report-item em {
+.status-badge {
   justify-self: start;
   padding: 3px 8px;
   border-radius: 999px;
@@ -260,6 +260,11 @@ h1 {
   font-size: 12px;
   font-style: normal;
   font-weight: 700;
+}
+
+.status-badge.failed {
+  color: #9f1d1d;
+  background: #fde2e2;
 }
 
 .report-preview {

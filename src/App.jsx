@@ -22,6 +22,10 @@ function getReportKey(report, index) {
   return report?.id || report?.reportId || `${report?.fileName || report?.name || 'report'}-${index}`;
 }
 
+function getStatusClassName(status) {
+  return status?.toLowerCase() === 'failed' ? 'status-badge failed' : 'status-badge';
+}
+
 function sortReportsByNewest(reports) {
   return [...reports].sort((a, b) => {
     const aTime = new Date(getReportDate(a)).getTime();
@@ -196,7 +200,7 @@ export default function App() {
                   >
                     <strong>{report.title || report.fileName || report.name || `Report #${index + 1}`}</strong>
                     <span>{formatDate(getReportDate(report))}</span>
-                    {report.status ? <em>{report.status}</em> : null}
+                    {report.status ? <em className={getStatusClassName(report.status)}>{report.status}</em> : null}
                   </button>
                   );
                 })
