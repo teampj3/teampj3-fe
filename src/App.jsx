@@ -14,6 +14,22 @@ function normalizeReports(value) {
   return [];
 }
 
+function getReportDate(report) {
+  return report?.createdAt || report?.created_at || report?.updatedAt || '';
+}
+
+function getReportKey(report, index) {
+  return report?.id || report?.reportId || `${report?.fileName || report?.name || 'report'}-${index}`;
+}
+
+function sortReportsByNewest(reports) {
+  return [...reports].sort((a, b) => {
+    const aTime = new Date(getReportDate(a)).getTime();
+    const bTime = new Date(getReportDate(b)).getTime();
+    return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+  });
+}
+
 function formatDate(value) {
   if (!value) return '-';
   const date = new Date(value);
@@ -30,21 +46,37 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [reports, setReports] = useState([]);
+  const [selectedReportKey, setSelectedReportKey] = useState('');
   const [reportError, setReportError] = useState('');
   const [isLoadingReports, setIsLoadingReports] = useState(false);
 
-  const selectedReport = useMemo(() => reports[0], [reports]);
+  const selectedReport = useMemo(() => {
+    return reports.find((report, index) => getReportKey(report, index) === selectedReportKey) || reports[0];
+  }, [reports, selectedReportKey]);
 
-  async function loadReports() {
+  async function loadReports({ selectLatest = false } = {}) {
     setIsLoadingReports(true);
     setReportError('');
 
     try {
       const result = await fetchReports();
-      setReports(normalizeReports(result));
+      const sortedReports = sortReportsByNewest(normalizeReports(result));
+      setReports(sortedReports);
+      setSelectedReportKey((currentKey) => {
+        if (selectLatest) {
+          return sortedReports.length > 0 ? getReportKey(sortedReports[0], 0) : '';
+        }
+
+        if (sortedReports.some((report, index) => getReportKey(report, index) === currentKey)) {
+          return currentKey;
+        }
+
+        return sortedReports.length > 0 ? getReportKey(sortedReports[0], 0) : '';
+      });
     } catch (error) {
       setReportError(error.message);
       setReports([]);
+      setSelectedReportKey('');
     } finally {
       setIsLoadingReports(false);
     }
@@ -67,7 +99,7 @@ export default function App() {
       await uploadFeatureFile(selectedFile);
       setUploadMessage('업로드 완료. 백엔드에서 GTest 케이스와 리포트를 생성합니다.');
       setSelectedFile(null);
-      await loadReports();
+      await loadReports({ selectLatest: true });
     } catch (error) {
       setUploadMessage(`업로드 실패: ${error.message}`);
     } finally {
@@ -151,12 +183,23 @@ export default function App() {
               ) : reports.length === 0 ? (
                 <p className="empty-state">아직 표시할 리포트가 없습니다.</p>
               ) : (
-                reports.map((report, index) => (
-                  <article className="report-item" key={report.id || report.reportId || index}>
+                reports.map((report, index) => {
+                  const reportKey = getReportKey(report, index);
+                  const isSelected = reportKey === selectedReportKey || (!selectedReportKey && index === 0);
+
+                  return (
+                  <button
+                    className={isSelected ? 'report-item selected' : 'report-item'}
+                    key={reportKey}
+                    type="button"
+                    onClick={() => setSelectedReportKey(reportKey)}
+                  >
                     <strong>{report.title || report.fileName || report.name || `Report #${index + 1}`}</strong>
-                    <span>{formatDate(report.createdAt || report.created_at || report.updatedAt)}</span>
-                  </article>
-                ))
+                    <span>{formatDate(getReportDate(report))}</span>
+                    {report.status ? <em>{report.status}</em> : null}
+                  </button>
+                  );
+                })
               )}
             </div>
 
